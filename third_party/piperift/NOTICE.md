@@ -1,0 +1,1 @@
+Derived from https://github.com/PipeRift/FactionsExtension, commit f8194a7bb0195a14e81a7804b1a97544974adb2b, Apache-2.0, Copyright 2015-2018 Piperift. The source was rewritten in C with changed semantics. Retain this notice and LICENSE-FactionsExtension when redistributing derived portions.
