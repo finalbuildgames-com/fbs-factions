@@ -4,13 +4,15 @@
  *
  * Derived from PipeRift/FactionsExtension (Apache License 2.0, Copyright (c)
  * 2015-2018 Piperift) at commit f8194a7bb0195a14e81a7804b1a97544974adb2b,
- * rewritten in C with changed semantics; see docs/decisions/factions.md,
- * docs/sources/factions-inventory.md and third_party/piperift/NOTICE.md.
+ * rewritten in C with changed semantics; see third_party/piperift/NOTICE.md.
  * These files have been changed from the original work: this is a from-scratch
- * C implementation of a deliberately different model — strictly directed edges,
+ * C implementation of a deliberately different model (strictly directed edges,
  * permanent dense ids with tombstones, a single allocation, an explicit
- * little-endian schema — which fixes the source defects F-1 .. F-13 recorded in
- * docs/sources/factions-inventory.md section 9.
+ * little-endian schema). It fixes defects of the source, among them a relation
+ * set whose membership depended on insertion order, relations left dangling
+ * after a faction was removed, team ids that shifted on removal, a team
+ * conversion that aliased real factions past 256, and queries that silently
+ * measured the attitude in the other direction.
  *
  * C99. Standard library only (no libm). No globals, no static mutable state.
  */
@@ -571,11 +573,10 @@ fbs_faction_status fbs_relation_list(const fbs_factions *f, fbs_relation *out, s
 /* Resolution                                                                */
 /* ------------------------------------------------------------------------- */
 
-/* The three-step resolution of docs/decisions/factions.md section 4.1:
- * explicit edge, then the SOURCE descriptor, then the table default. The
- * target descriptor is never consulted. Both ids must be live; the table
- * default is what a caller gets when one of them is not (see
- * fbs_attitude_of). */
+/* The three-step resolution: explicit edge, then the SOURCE descriptor, then
+ * the table default. The target descriptor is never consulted. Both ids must
+ * be live; the table default is what a caller gets when one of them is not
+ * (see fbs_attitude_of). */
 static int fbs_resolve(const fbs_factions *f, fbs_faction_id from, fbs_faction_id to,
                        int *out_explicit) {
   const fbs_faction_slot *s;
@@ -684,7 +685,7 @@ fbs_faction_status fbs_faction_from_team(const fbs_factions *f, unsigned char te
 }
 
 /* ------------------------------------------------------------------------- */
-/* Serialization (docs/decisions/factions.md section 4.2)                     */
+/* Serialization                                                             */
 /* ------------------------------------------------------------------------- */
 
 static void fbs_put_u16(unsigned char *p, unsigned v) {

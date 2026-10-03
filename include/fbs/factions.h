@@ -2,10 +2,10 @@
  * fbs/factions.h — FinalBuildSystems faction registry and directed attitude
  * relations. C99, engine independent, no libm.
  *
- * Model (decision: docs/decisions/factions.md): factions are registered under
- * a UTF-8 key and receive a dense, permanent id (1-based; 0 is
- * FBS_FACTION_NONE). Relations are always directed edges from -> to with an
- * attitude; "symmetric" helpers write two edges. Attitude resolution order:
+ * Model: factions are registered under a UTF-8 key and receive a dense,
+ * permanent id (1-based; 0 is FBS_FACTION_NONE). Relations are always
+ * directed edges from -> to with an attitude; "symmetric" helpers write two
+ * edges. Attitude resolution order:
  *   1. explicit edge (from -> to)
  *   2. the SOURCE faction's descriptor: from == to ? self_attitude : external_attitude
  *   3. the table default (FBS_ATTITUDE_NEUTRAL unless changed)
@@ -147,7 +147,8 @@ fbs_faction_status fbs_factions_query(const fbs_factions *f, fbs_faction_id fact
 fbs_faction_status fbs_faction_to_team(const fbs_factions *f, fbs_faction_id id, unsigned char *out_team);
 fbs_faction_status fbs_faction_from_team(const fbs_factions *f, unsigned char team, fbs_faction_id *out_id);
 
-/* Deterministic little-endian schema (docs/decisions/factions.md section 8):
+/* Deterministic little-endian schema (magic "FBSF", version 1; faction records
+ * in id order, relations sorted by (from, to), then the key blob):
  * identical logical tables serialize to identical bytes regardless of insertion
  * order of relations. */
 size_t fbs_factions_serialized_size(const fbs_factions *f);

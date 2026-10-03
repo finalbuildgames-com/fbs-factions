@@ -4,8 +4,9 @@
  * Self-contained: no test framework. Exit code = number of failures (clamped
  * to 100 so it survives the 8-bit exit status; the true count is printed).
  *
- * Covers docs/decisions/factions.md section 8: F-T1..F-T9, F-T11, F-T12
- * (F-T10 is Unreal-side and out of scope for the C library), plus allocator
+ * Covers the test plan witnesses F-T1..F-T9, F-T11, F-T12 (F-T10, a
+ * solver-lifetime check for an Unreal integration, is out of scope for the C
+ * library), plus allocator
  * failure, every capacity exhaustion, every E_TRUNCATED path, NULL/bad-enum
  * validation on every entry point, the status-name/version functions and a
  * committed golden serialization fixture.
@@ -222,7 +223,7 @@ static void test_ft3_symmetric_helper(void) {
 }
 
 /* ------------------------------------------------------------------------- */
-/* F-T4 — mixed directionality survives (the F-1 hazard)                     */
+/* F-T4 — mixed directionality survives (insertion-order hazard of source)   */
 /* ------------------------------------------------------------------------- */
 
 static void check_mixed_pair(int reverse_insertion_order) {
