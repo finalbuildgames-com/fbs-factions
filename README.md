@@ -4,9 +4,9 @@ A C99 faction registry with stable ids and directed friendly, neutral or hostile
 
 ## What it does
 
-You register factions under a byte-string key and get back a permanent id. You then set directed relations between them and ask "how does faction A feel about faction B?".
+You register factions under a byte-string key and get back an id that remains stable until the table is cleared. You then set directed relations between them and ask "how does faction A feel about faction B?".
 
-- `fbs_factions_create` builds a table from a `fbs_faction_config` (capacities and a default attitude). `fbs_faction_add` registers a key with a `fbs_faction_desc` (attitude toward itself, attitude toward everyone else) and returns an id. Ids start at 1 and are never reused or renumbered; `FBS_FACTION_NONE` is 0.
+- `fbs_factions_create` builds a table from a `fbs_faction_config` (capacities and a default attitude). `fbs_faction_add` registers a key with a `fbs_faction_desc` (attitude toward itself, attitude toward everyone else) and returns an id. Ids start at 1 and are never reused or renumbered between calls to `fbs_factions_clear`; `FBS_FACTION_NONE` is 0.
 - `fbs_relation_set` writes one directed edge `from -> to`. `fbs_relation_set_symmetric` writes both directions, or neither if there is no room.
 - `fbs_attitude_of(f, from, to)` resolves an attitude in a fixed order: the explicit edge, then the source faction's descriptor (`self_attitude` when `from == to`, otherwise `external_attitude`), then the table default. The target's descriptor is never consulted, so A and B can disagree about each other without any edges. `fbs_attitude_of_checked` returns `FBS_FACTION_E_NOT_FOUND` for unknown or retired ids instead of silently answering with the default. `fbs_relation_get` also tells you whether an explicit edge decided the result.
 - `fbs_factions_query` lists the live factions whose resolved attitude equals a given value, either toward a faction (`FBS_FACTION_TOWARD`) or from them toward it (`FBS_FACTION_FROM`), in ascending id order.
@@ -25,6 +25,7 @@ You need a small, explicit "who is hostile to whom" table for AI targeting, team
 - Retired ids still count against `max_factions`, and retired keys still occupy key storage, until `fbs_factions_clear`. A table with heavy add/retire churn eventually returns `FBS_FACTION_E_FULL` (tests/test_factions.c, `test_capacities`, checks the key storage case).
 - Only ids 1..255 have a team id; `fbs_faction_to_team` returns `FBS_FACTION_E_RANGE` above that.
 - There are no change callbacks or events. `fbs_factions_query` scans every issued id, and adding an edge shifts a sorted array, so the cost grows with table size.
+- `fbs_factions_clear` resets issued IDs, so the next registration starts at 1 again. Invalidate or replace host references before clearing: these IDs have no generation field to distinguish the new table contents.
 - There is no internal locking.
 
 ## Example
@@ -77,10 +78,14 @@ Build it with `add_executable(demo main.c)` and `target_link_libraries(demo PRIV
 
 ## Build and test
 
+Run from this repository's root. In addition to CMake and the compiler named
+below, install the build tool selected by your generator (for example Make or
+Ninja).
+
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
-cmake --build build --parallel 2
-ctest --test-dir build --output-on-failure --no-tests=error
+cmake --build build --parallel 1
+(cd build && ctest --output-on-failure)
 ```
 
 This runs two tests. `factions` runs tests/test_factions.c, which checks the resolution order, one-way and symmetric edges, id stability across retire and a save/load round trip, the team-id bridge, query direction, every capacity limit, allocator failure, truncated output buffers, invalid arguments on every entry point, rejection of malformed blobs, and a 3000-step seeded randomized run compared against an independent reference model. It also compares serialization output byte for byte with the committed fixture tests/fixtures/factions/table.bin. `factions_example` runs `fbs_factions_example` (examples/basic.c), which creates and destroys a table and prints the API version.
@@ -100,9 +105,29 @@ FetchContent_MakeAvailable(fbs_factions)
 target_link_libraries(your_target PRIVATE fbs::factions)
 ```
 
-`add_subdirectory(fbs-factions)` works the same way. `cmake --install` installs the library, headers and a `FinalBuildFactionsTargets` export, but no package config file, so `find_package` is not supported.
+`add_subdirectory(fbs-factions)` works the same way.
 
 This repository ships the C library only. Engine bindings and adapters are not included.
+
+## Build modes and installation
+
+`BUILD_SHARED_LIBS=ON` builds a shared library; the default is static.
+`FBS_BUILD_TESTS` and `BUILD_TESTING` together enable the core test.
+`FBS_BUILD_EXAMPLES` controls `fbs_factions_example`; its CTest entry also requires
+`BUILD_TESTING`. For a library-only build, set `FBS_BUILD_TESTS=OFF` and
+`FBS_BUILD_EXAMPLES=OFF`.
+
+```sh
+cmake --install build --prefix "$PWD/install"
+```
+
+Installation supplies [the public header](include/fbs/factions.h), the library,
+license notices and `FinalBuildFactionsTargets.cmake` under
+`${CMAKE_INSTALL_LIBDIR}/cmake/FinalBuildFactions`. It supplies no package config or
+version config, so `find_package(FinalBuildFactions)` is unavailable. A consumer may
+include the installed targets file explicitly and link `fbs::factions`, or use
+the source integration above. The [minimal program](examples/basic.c) and
+[core tests](tests/test_factions.c) show the implemented entry points.
 
 ## Design notes
 
